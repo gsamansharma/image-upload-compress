@@ -1,4 +1,5 @@
 const { app } = require('@azure/functions');
+const sharp = require('sharp');
 const busboy = require('busboy');
 const { Readable } = require('stream');
 
@@ -38,7 +39,7 @@ app.http('uploadImage', {
   authLevel: 'anonymous',
   handler: async (request, context) => {
     context.log(`Received upload request at ${request.url}`);
-    
+
     try {
       const contentType = request.headers.get('content-type');
       if (!contentType || !contentType.includes('multipart/form-data')) {
@@ -48,10 +49,16 @@ app.http('uploadImage', {
       const imageBuffer = await parseForm(request);
       context.log('Image parsed from request. Size:', imageBuffer.length);
       
-      return { status: 200, body: 'Image received successfully.' };
+      const compressed = await sharp(imageBuffer)
+        .webp({ quality: parseInt(process.env.IMAGE_QUALITY, 10) || 80 })
+        .toBuffer();
+      
+      context.log('Image compressed. Original:', imageBuffer.length, 'Compressed:', compressed.length);
+
+      return { status: 200, body: 'Image received and compressed.' };
 
     } catch (err) {
-      context.log(`Upload error:`, err);
+      context.log('Upload error:', err);
       return { status: 500, body: `Internal server error: ${err.message || err}` };
     }
   }
