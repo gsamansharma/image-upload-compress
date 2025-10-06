@@ -1,5 +1,7 @@
 const { app } = require('@azure/functions');
 const sharp = require('sharp');
+const { BlobServiceClient } = require('@azure/storage-blob');
+const { v4: uuidv4 } = require('uuid');
 const busboy = require('busboy');
 const { Readable } = require('stream');
 
@@ -54,8 +56,30 @@ app.http('uploadImage', {
         .toBuffer();
       
       context.log('Image compressed. Original:', imageBuffer.length, 'Compressed:', compressed.length);
+      
+      const blobServiceClient = BlobServiceClient.fromConnectionString(process.env.AZURE_STORAGE_CONNECTION_STRING);
+      const containerClient = blobServiceClient.getContainerClient(process.env.AZURE_STORAGE_CONTAINER_NAME);
+      
+      const blobName = `${uuidv4()}.webp`;
+      const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+      
+      await blockBlobClient.uploadData(compressed, {
+        blobHTTPHeaders: { blobContentType: 'image/webp' }
+      });
+      
+      const blobUrl = blockBlobClient.url;
+      context.log(`Uploaded compressed image to: ${blobUrl}`);
 
-      return { status: 200, body: 'Image received and compressed.' };
+      return {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: 'Image uploaded & compressed successfully!',
+          blobUrl,
+          originalSize: imageBuffer.length,
+          compressedSize: compressed.length
+        })
+      };
 
     } catch (err) {
       context.log('Upload error:', err);

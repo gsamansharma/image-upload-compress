@@ -8,8 +8,10 @@
   },
   "dependencies": {
     "@azure/functions": "^4.0.0",
+    "@azure/storage-blob": "^12.28.0",
     "busboy": "^1.6.0",
-    "sharp": "^0.34.4"
+    "sharp": "^0.34.4",
+    "uuid": "^13.0.0"
   },
   "main": "src/{index.js,functions/*.js}"
 }
